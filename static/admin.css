@@ -1,0 +1,63 @@
+body {
+  font-family: Arial;
+  background: #f5f7fb;
+  padding: 24px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.05);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.login-box {
+  width: 360px;
+  margin: 120px auto;
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+}
+
+.card.danger {
+  border: 1px solid #fca5a5;
+  background: #fff1f2;
+}
+
+.restart-btn {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.restart-btn:hover {
+  background: #b91c1c;
+}
+
+.hint {
+  color: #991b1b;
+  font-size: 12px;
+  margin-top: 8px;
+}
