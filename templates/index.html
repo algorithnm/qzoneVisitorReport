@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>厦门学生墙访客周报</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+{% raw %}
+:root {
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --primary: #4f46e5;
+  --text: #1f2937;
+  --muted: #6b7280;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, Helvetica, Arial, "PingFang SC";
+  background: var(--bg);
+  color: var(--text);
+}
+
+h1 { margin: 0 0 4px; }
+
+.subtitle {
+  color: var(--muted);
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 20px 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats {
+  display: flex;
+  gap: 32px;
+}
+
+.stat {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.stat b {
+  display: block;
+  font-size: 26px;
+  color: var(--text);
+}
+
+.chart-box {
+  position: relative;
+  height: 320px;
+}
+
+select, button {
+  padding: 6px 10px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 32px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.logo {
+  height: 110px;
+}
+
+.week-switch {
+  margin-top: 6px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.week-range {
+  font-size: 13px;
+  color: var(--muted);
+}
+{% endraw %}
+</style>
+</head>
+
+<body>
+
+<!-- ===== 页面头部 ===== -->
+<div class="header">
+  <img src="/static/logo.png" class="logo">
+  <div>
+    <h1>厦门学生墙 · QQ 空间访客周报</h1>
+
+    <div class="subtitle">
+      周次：{{ report.week }}<br>
+      周范围：<span id="weekRange">计算中…</span><br>
+      最近刷新：{{ report.generated_at }}
+    </div>
+
+    <div class="week-switch">
+      <button onclick="switchWeek(-1)">⬅️ 上一周</button>
+      <span>当前：{{ report.week }}</span>
+      <button onclick="switchWeek(1)" {% if week_offset == 0 %}disabled{% endif %}>
+        下一周 ➡️
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard">
+
+  <!-- ===== 总览 ===== -->
+  <div class="card">
+    <h2>📊 本周总览</h2>
+    <div class="stats">
+      <div class="stat"><b>{{ report.summary.total_visits }}</b>访问次数</div>
+      <div class="stat"><b>{{ report.summary.unique_visitors }}</b>独立访客</div>
+      <div class="stat"><b>{{ report.summary.new_visitors }}</b>新增访客</div>
+    </div>
+  </div>
+
+  <!-- ===== 访问趋势 ===== -->
+  <div class="card">
+    <div class="card-header">
+      <h2 id="trendTitle">访问趋势</h2>
+      <div class="controls">
+        <span style="font-size:13px;color:#6b7280;">时间尺度</span>
+        <select id="scale">
+          <option value="86400">日</option>
+          <option value="43200">12小时</option>
+          <option value="21600">6小时</option>
+          <option value="10800">3小时</option>
+          <option value="3600" selected>1小时</option>
+          <option value="1800">30分钟</option>
+          <option value="900">15分钟</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="chart-box">
+      <canvas id="totalChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  © Amoy Campus Confessions 2022–2026
+</footer>
+
+<script>
+/* ================= 后端注入数据 ================= */
+const weekOffset = {{ week_offset }};
+const weekStartStr = "{{ report.hourly_168.start }}";
+const initialLabels = {{ report.hourly_168.labels | tojson }};
+const initialValues = {{ report.hourly_168["values"] | tojson }};
+
+/* ================= 周范围显示 ================= */
+(function renderWeekRange() {
+  const start = new Date(weekStartStr.replace(" ", "T"));
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  const fmt = d =>
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
+  document.getElementById("weekRange").innerText =
+    `${fmt(start)} ～ ${fmt(end)}`;
+})();
+
+/* ================= 周切换 ================= */
+function switchWeek(delta) {
+  const target = weekOffset + delta;
+  if (target > 0) return;
+
+  const url = new URL(location.href);
+  url.searchParams.set("week", target);
+  location.href = url.toString();
+}
+
+/* ================= 总趋势图 ================= */
+const totalChart = new Chart(
+  document.getElementById("totalChart"),
+  {
+    type: "line",
+    data: {
+      labels: initialLabels,
+      datasets: [
+        {
+          label: "访问次数",
+          data: initialValues,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          hitRadius: 12,
+          tension: 0.35,
+          cubicInterpolationMode: "monotone"
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+
+      /* 🌊 整体动画更顺 */
+      animation: {
+        duration: 700,
+        easing: "easeOutCubic"
+      },
+
+      /* 👉 核心：任意 X 位置 hover */
+      interaction: {
+        mode: "index",
+        intersect: false,
+        axis: "x"
+      },
+
+      plugins: {
+        legend: {
+          display: false
+        },
+
+        tooltip: {
+          enabled: true,
+          mode: "index",
+          intersect: false,
+          position: "nearest",
+
+          animation: {
+            duration: 200,
+            easing: "easeOutQuart"
+          },
+
+          callbacks: {
+            title(items) {
+              // X 轴标签
+              return items[0].label;
+            },
+            label(item) {
+              return `访问次数：${item.formattedValue}`;
+            }
+          }
+        }
+      },
+
+      elements: {
+        line: {
+          tension: 0.35,
+          cubicInterpolationMode: "monotone"
+        },
+        point: {
+          radius: 0,
+          hitRadius: 12,
+          hoverRadius: 4
+        }
+      },
+
+      scales: {
+        x: {
+          ticks: {
+            autoSkip: true,
+            maxRotation: 0
+          }
+        },
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  }
+);
+
+
+/* ================= 时间尺度切换 ================= */
+document.getElementById("scale").addEventListener("change", reloadByScale);
+
+function reloadByScale() {
+  const scale = document.getElementById("scale").value;
+
+  const start = new Date(weekStartStr.replace(" ", "T")).getTime() / 1000;
+  const end = start + 7 * 24 * 3600;
+
+  fetch(`/api/report/custom?start=${start}&end=${end}&scale=${scale}`)
+    .then(r => r.json())
+    .then(data => {
+      totalChart.data.labels = data.series.labels;
+      totalChart.data.datasets[0].data = data.series.values;
+
+      totalChart.update({
+        duration: 500,
+        easing: "easeOutQuart"
+      });
+
+      updateTitle(scale);
+    })
+    .catch(err => console.error("时间尺度刷新失败", err));
+}
+
+function updateTitle(scale) {
+  const map = {
+    86400: "按日访问趋势",
+    43200: "12 小时访问趋势",
+    21600: "6 小时访问趋势",
+    10800: "3 小时访问趋势",
+    3600: "1 小时访问趋势",
+    1800: "30 分钟访问趋势",
+    900: "15 分钟访问趋势"
+  };
+  document.getElementById("trendTitle").innerText =
+    map[scale] || "访问趋势";
+}
+</script>
+
+</body>
+</html>
