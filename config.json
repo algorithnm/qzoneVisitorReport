@@ -1,0 +1,27 @@
+{
+  "db_file": "qzone_visitor_db_墙.json",
+  "log_file": "access.log",
+
+  "qos": {
+    "limit": 30,
+    "window": 1
+  },
+
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8890,
+    "refresh_interval": 15
+  },
+
+  "admin": {
+    "token": "Algorithnm_1",
+    "ips": ["127.0.0.1", "192.168.2.64"],
+    "secret_key": "****"
+  },
+
+  "visitor": {
+    "UIN": ****,
+    "nickname": "****",
+    "interval": 5
+  }
+}
