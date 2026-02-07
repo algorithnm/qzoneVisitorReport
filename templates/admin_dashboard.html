@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>访客周报后台</title>
+<link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+
+<header>
+  <img src="/static/logo.png" height="48">
+  <h1>访客周报 · 管理后台</h1>
+  <a href="/admin/logout">退出</a>
+</header>
+
+<div class="card">
+  <h3>本周访问 Top10 用户</h3>
+  <table id="top10"></table>
+</div>
+
+<div class="card">
+  <h3>累计独立用户数</h3>
+  <div id="unique"></div>
+</div>
+
+<div class="card">
+  <h3>查询 UIN</h3>
+  <input id="uin" placeholder="输入 UIN">
+  <button onclick="queryUin()">查询</button>
+  <table id="records"></table>
+</div>
+
+<script src="/static/admin.js"></script>
+</body>
+</html>
